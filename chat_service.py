@@ -58,8 +58,19 @@ class ChatRequest(BaseModel):
 # ── CHAT ENDPOINT ────────────────────────────────────────────
 @app.post('/chat')
 async def chat(req: ChatRequest):
-    # בניית השיחה המלאה
-    messages = [{'role': 'system', 'content': SYSTEM_PROMPT}]
+    # בניית מחרוזת קטלוג מוצרים מתוך הרשימה ש-.NET שלח
+    if req.products:
+        catalog_lines = []
+        for p in req.products:
+            line = f"- {p['name']} (${p['price']}): {p.get('description','')}"
+            catalog_lines.append(line)
+        catalog = '\n'.join(catalog_lines)
+        full_prompt = SYSTEM_PROMPT + f'\n\nAvailable products:\n{catalog}\n\nOnly recommend products from this list.'
+    else:
+        full_prompt = SYSTEM_PROMPT
+
+    # בניית השיחה
+    messages = [{'role': 'system', 'content': full_prompt}]
     for m in req.history:
         messages.append({'role': m.role, 'content': m.content})
     messages.append({'role': 'user', 'content': req.message})
@@ -68,6 +79,6 @@ async def chat(req: ChatRequest):
         model='gpt-4o',
         messages=messages,
         max_tokens=400,
-        temperature=0.7
+        temperature=0.5
     )
     return {'reply': response.choices[0].message.content}
